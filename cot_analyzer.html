@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>XAU/USD — COT Disaggregated (Gold 088691) – Rapport & Plan</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151923; --ink:#eef1f7; --muted:#9aa3b2;
+    --accent:#59c3ff; --ok:#23c55e; --warn:#f59e0b; --bad:#ef4444;
+    --card:#0f172a; --soft:#0b1220; --line:#212637;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:1100px;margin:auto;padding:24px}
+  h1{font-size:24px;margin:0 0 12px}
+  h2{font-size:18px;margin:0 0 8px}
+  .row{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .card{background:linear-gradient(180deg,var(--panel),var(--soft));border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 25px rgba(0,0,0,.25)}
+  .card .hd{padding:14px 16px;border-bottom:1px solid var(--line)}
+  .card .bd{padding:14px 16px}
+  label{display:block;color:var(--muted);margin:0 0 6px}
+  textarea,input{width:100%;box-sizing:border-box;background:#0b1220;border:1px solid #1c2435;color:var(--ink);padding:10px;border-radius:10px;outline:none}
+  textarea:focus,input:focus{border-color:#304063}
+  textarea{min-height:160px;resize:vertical}
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{background:#1e293b;color:#e9eef9;border:1px solid #2b3b57;padding:9px 12px;border-radius:10px;cursor:pointer}
+  button:hover{filter:brightness(1.1)}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0e1526}
+  .ok{color:#b7f7c7;border-color:#1e3a2f;background:#0a1a12}
+  .bad{color:#ffc2c2;border-color:#40222a;background:#1a0d10}
+  .warn{color:#ffe8b5;border-color:#463719;background:#1a1308}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #1e2534;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{position:sticky;top:0;background:#0c1322;z-index:1}
+  .kpis{display:flex;flex-wrap:wrap;gap:8px}
+  .muted{color:var(--muted)}
+  .gridRS{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .box{border:1px dashed #2a3652;border-radius:12px;padding:10px}
+  .print-chunk{page-break-inside:avoid}
+  .hint{font-size:12px;color:#aab2c2}
+  @media print{
+    body{background:#fff;color:#000}
+    .card{background:#fff;border-color:#ddd;box-shadow:none}
+    .no-print{display:none!important}
+    .wrap{max-width:none;padding:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧠 XAU/USD — Lecteur & Analyseur COT (Disaggregated, Gold 088691)</h1>
+  <div class="btns no-print" style="margin-bottom:10px">
+    <button id="btnAnalyse">Analyser</button>
+    <button id="btnExportPDF">Exporter PDF</button>
+    <button id="btnSave">Sauvegarder état</button>
+    <button id="btnLoad">Restaurer état</button>
+  </div>
+
+  <div class="row g2">
+    <div class="card print-chunk">
+      <div class="hd"><h2>Entrée — Rapport COT (Semaine en cours)</h2></div>
+      <div class="bd">
+        <label>Colle le bloc texte CFTC (Disaggregated – GOLD COMEX 088691). La ligne « All : … » sera détectée automatiquement.</label>
+        <textarea id="curTxt" placeholder="Colle ici…"></textarea>
+        <div class="row g2" style="margin-top:10px">
+          <div>
+            <label>Spot XAU/USD (optionnel)</label>
+            <input id="spot" type="number" step="0.1" placeholder="ex: 2400.5" />
+          </div>
+          <div>
+            <label>Historique MM Net (CSV facultatif : date,mm_net)</label>
+            <textarea id="histCsv" placeholder="2023-09-01, 120000&#10;2023-09-08, 125500"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card print-chunk">
+      <div class="hd"><h2>Entrée — Rapport COT (Semaine précédente, S-1)</h2></div>
+      <div class="bd">
+        <label>Colle la semaine précédente pour calculer Δ semaine/semaine (facultatif mais recommandé).</label>
+        <textarea id="prevTxt" placeholder="Colle ici…"></textarea>
+        <p class="hint">Astuce : tu peux coller les blocs complets CFTC. Le parseur repère automatiquement la ligne « All : … ».</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="report" class="print-chunk">
+    <div class="card">
+      <div class="hd"><h2>Résumé exécutif & KPIs</h2></div>
+      <div class="bd">
+        <div id="resume" style="margin-bottom:10px" class="muted">Colle tes rapports puis clique « Analyser ».</div>
+        <div class="kpis" id="kpis"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g2 print-chunk" style="margin-top:14px">
+    <div class="card">
+      <div class="hd"><h2>Lecture COT — Tableau</h2></div>
+      <div class="bd">
+        <div class="hint" style="margin-bottom:8px">Colonnes : Long / Short / Net et Δ (S−S-1). Catégories : Managed Money, Swap Dealers, Producer/Merchant, Other Reportables, Non-reportables + Open Interest.</div>
+        <div style="overflow:auto"><table id="tableCot"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>Niveaux & Scénarios (H4/D1)</h2></div>
+      <div class="bd">
+        <div id="rsBox" class="gridRS" style="margin-bottom:10px"></div>
+        <div class="box">
+          <b>Scénarios</b>
+          <ul>
+            <li><b>Haussier</b> — Δ MM Net & OI positifs ; break & hold au-dessus R1 → viser R2/R3. Invalidation : perte de S1 + MM Net ↓.</li>
+            <li><b>Range</b> — MM Net stable (±5–10k) ; travailler S1↔R1 ; éviter milieu sans signal clair.</li>
+            <li><b>Cassure baissière</b> — Δ MM Net & OI négatifs ; cassure S1/S2 avec BOS H4 → shorts tactiques au pullback.</li>
+          </ul>
+          <div class="hint">Exécution : fenêtres Europe 08:00–11:00 & 13:00–16:00, triggers OB/FVG/SMT, RR ≥ 1:2.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g2 print-chunk" style="margin-top:14px">
+    <div class="card">
+      <div class="hd"><h2>Graphique — Managed Money (Long/Short/Net)</h2></div>
+      <div class="bd"><canvas id="chartBars" height="260"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>Graphique — MM Net S-1 vs S (explication S/S-1)</h2></div>
+      <div class="bd">
+        <div class="hint" style="margin-bottom:8px"><b>S</b> = semaine actuelle (dernier rapport) • <b>S-1</b> = semaine précédente. Δ = S − S-1.</div>
+        <canvas id="chartDelta" height="260"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card print-chunk" style="margin-top:14px">
+    <div class="hd"><h2>Agenda macro — remplissage rapide & export ICS</h2></div>
+    <div class="bd">
+      <div class="btns no-print" style="margin-bottom:8px">
+        <button id="btnFillAgenda">Remplir auto (règles)</button>
+        <button id="btnExportICS">Exporter .ics</button>
+      </div>
+      <div class="row g3">
+        <div><label>NFP (US)</label><input id="nfpDate" type="date"></div>
+        <div><label>CPI (US)</label><input id="cpiDate" type="date"></div>
+        <div><label>PCE core (US)</label><input id="pceDate" type="date"></div>
+        <div><label>FOMC – début</label><input id="fomcStart" type="date"></div>
+        <div><label>FOMC – fin</label><input id="fomcEnd" type="date"></div>
+        <div><label>Notes</label><input id="macroNotes" placeholder="Ex. : CPI>attendu ⇒ USD↑ Or↓" /></div>
+      </div>
+      <p class="hint" style="margin-top:8px">Rappel : le COT est daté du mardi et publié le vendredi → filtre de biais hebdomadaire, <i>pas</i> un outil intraday.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=> {
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const stateKeys = ["curTxt","prevTxt","spot","histCsv","nfpDate","cpiDate","pceDate","fomcStart","fomcEnd","macroNotes"];
+
+  function fmt(n){ return (n==null||!isFinite(n))? "—" : n.toLocaleString('fr-FR'); }
+  function pct(n,d){ if(!d) return 0; return 100*(n/d); }
+  function parseHistoryCSV(csv){
+    if(!csv) return [];
+    return csv.split(/\r?\n/).map(l=>{
+      const [date,netRaw] = l.split(/,|;|\t/);
+      const net = parseFloat((netRaw||"").replace(/\s/g,""));
+      if(isFinite(net)) return {date:(date||"").trim(), net};
+      return null;
+    }).filter(Boolean);
+  }
+  function cotIndex(mmNet, arr, win=156){
+    if(mmNet==null || !arr?.length) return null;
+    const nets = arr.map(r=>r.net).filter(v=>typeof v==="number");
+    const slice = nets.slice(-win);
+    if(!slice.length) return null;
+    const mn = Math.min(...slice), mx = Math.max(...slice);
+    if(mx===mn) return 50;
+    return 100*(mmNet-mn)/(mx-mn);
+  }
+
+  function parseCotDisaggregated(raw){
+    if(!raw) return null;
+    const lineIdx = raw.indexOf("Positions");
+    const part = lineIdx>=0 ? raw.slice(lineIdx) : raw;
+    const m = part.match(/^\s*All\s*:.*$/im);
+    const allLine = m ? m[0] : null;
+    if(!allLine) return null;
+    const nums = (allLine.match(/-?\d[\d,]*/g)||[]).map(s=>parseInt(s.replace(/,/g,""),10));
+    if(nums.length < 14) return null;
+    const [openInterest, pmL,pmS, swL,swS,swSp, mmL,mmS,mmSp, oL,oS,oSp, nrL,nrS] = nums.slice(0,14);
+    return {
+      openInterest,
+      producer:{long:pmL, short:pmS},
+      swaps:{long:swL, short:swS, spread:swSp},
+      mm:{long:mmL, short:mmS, spread:mmSp},
+      other:{long:oL, short:oS, spread:oSp},
+      nonrep:{long:nrL, short:nrS},
+    };
+  }
+  function deltas(cur, prev){
+    if(!cur||!prev) return null;
+    const d=(a,b)=> (a??0)-(b??0);
+    return {
+      openInterest: d(cur.openInterest, prev.openInterest),
+      producer:{ long:d(cur.producer.long,prev.producer.long), short:d(cur.producer.short,prev.producer.short) },
+      swaps:{ long:d(cur.swaps.long,prev.swaps.long), short:d(cur.swaps.short,prev.swaps.short) },
+      mm:{ long:d(cur.mm.long,prev.mm.long), short:d(cur.mm.short,prev.mm.short) },
+      other:{ long:d(cur.other.long,prev.other.long), short:d(cur.other.short,prev.other.short) },
+      nonrep:{ long:d(cur.nonrep.long,prev.nonrep.long), short:d(cur.nonrep.short,prev.nonrep.short) },
+    };
+  }
+  function levels(spot){
+    const p = Number(spot);
+    if(!isFinite(p) || p<=0) return null;
+    const up=[.006,.015,.03], dn=[.006,.015,.03];
+    return {
+      R: up.map(x=>+(p*(1+x)).toFixed(1)),
+      S: dn.map(x=>+(p*(1-x)).toFixed(1))
+    };
+  }
+  function inferBias(cur, prev){
+    if(!cur||!prev) return null;
+    const dNet = (cur.mm.long-cur.mm.short) - (prev.mm.long-prev.mm.short);
+    const dOI = cur.openInterest - prev.openInterest;
+    if(dNet>10000 && dOI>0) return { bias:"Haussier renforcé", reason:`MM Net +${fmt(dNet)} et OI +${fmt(dOI)}` };
+    if(dNet<-10000) return { bias:"Prudence / défensif", reason:`MM Net ${fmt(dNet)}` };
+    return { bias:"Neutre-haussier", reason:`Flux MM modéré (${fmt(dNet)}), OI ${dOI>0?"+":""}${fmt(dOI)}` };
+  }
+
+  let chartBars=null, chartDelta=null;
+  function renderCharts(cur, prev){
+    const ctx1 = $("#chartBars").getContext("2d");
+    const ctx2 = $("#chartDelta").getContext("2d");
+    if(chartBars){ chartBars.destroy(); chartBars=null; }
+    if(chartDelta){ chartDelta.destroy(); chartDelta=null; }
+
+    const mmL = cur.mm.long, mmS = cur.mm.short, mmN = mmL - mmS;
+    chartBars = new Chart(ctx1, {
+      type:"bar",
+      data:{
+        labels:["Long","Short","Net"],
+        datasets:[{label:"Contrats", data:[mmL,mmS,mmN]}]
+      },
+      options:{ responsive:true, plugins:{legend:{display:true}}, scales:{ y:{ beginAtZero:true } } }
+    });
+
+    const prevN = prev? (prev.mm.long-prev.mm.short) : 0;
+    chartDelta = new Chart(ctx2, {
+      type:"bar",
+      data:{ labels:["S-1","S"], datasets:[{ label:"Net", data:[prevN,mmN] }] },
+      options:{ responsive:true, plugins:{legend:{display:true}}, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+
+  function renderTable(cur, prev, d){
+    const el = $("#tableCot");
+    if(!cur){ el.innerHTML = "<tbody><tr><td>Aucune donnée.</td></tr></tbody>"; return; }
+    const row = (label, L,S, dL,dS) => {
+      const N = L - S;
+      const dN = (dL!=null && dS!=null)? (dL-dS): null;
+      return `<tr>
+        <td>${label}</td>
+        <td>${fmt(L)}</td>
+        <td>${fmt(S)}</td>
+        <td>${fmt(N)}</td>
+        <td>${dL==null?"—":fmt(dL)}</td>
+        <td>${dS==null?"—":fmt(dS)}</td>
+        <td>${dN==null?"—":fmt(dN)}</td>
+      </tr>`;
+    };
+    const body = [
+      row("Managed Money", cur.mm.long, cur.mm.short, d?.mm.long, d?.mm.short),
+      row("Swap Dealers", cur.swaps.long, cur.swaps.short, d?.swaps.long, d?.swaps.short),
+      row("Producer/Merchant", cur.producer.long, cur.producer.short, d?.producer.long, d?.producer.short),
+      row("Other Reportables", cur.other.long, cur.other.short, d?.other.long, d?.other.short),
+      row("Non-reportables", cur.nonrep.long, cur.nonrep.short, d?.nonrep.long, d?.nonrep.short),
+      `<tr style="background:#0c1322"><td><b>Open Interest</b></td><td>${fmt(cur.openInterest)}</td><td>—</td><td>—</td><td>${fmt(d?.openInterest)}</td><td>—</td><td>—</td></tr>`
+    ].join("");
+    el.innerHTML = `<thead>
+      <tr><th>Catégorie</th><th>Long</th><th>Short</th><th>Net</th><th>Δ Long</th><th>Δ Short</th><th>Δ Net</th></tr>
+      </thead><tbody>${body}</tbody>`;
+  }
+
+  function renderKpis(cur, prev, histArr, spotVal){
+    const box = $("#kpis"); box.innerHTML = "";
+    if(!cur){ return; }
+    const mmNet = cur.mm.long - cur.mm.short;
+    const mmPct = pct(mmNet, cur.openInterest);
+    const mmIdx = cotIndex(mmNet, histArr, 156);
+    const dOI = prev? (cur.openInterest - prev.openInterest) : null;
+    const add = (txt, cls="pill")=>{
+      const s = document.createElement("span"); s.className=cls; s.textContent=txt; box.appendChild(s);
+    };
+    add(`MM Net : ${fmt(mmNet)}`);
+    add(`Net %OI : ${isFinite(mmPct)? mmPct.toFixed(2)+"%":"—"}`);
+    if(mmIdx!=null) add(`COT Index(156) : ${mmIdx.toFixed(0)}`);
+    add(`Open Interest : ${fmt(cur.openInterest)}`);
+    if(dOI!=null) add(`Δ OI : ${dOI>0?"+":""}${fmt(dOI)}`, dOI>0?"pill ok":(dOI<0?"pill bad":"pill"));
+    if(spotVal){
+      const lvl = levels(spotVal);
+      if(lvl){
+        add(`R1 ${lvl.R[0]} • R2 ${lvl.R[1]} • R3 ${lvl.R[2]}`, "pill warn");
+        add(`S1 ${lvl.S[0]} • S2 ${lvl.S[1]} • S3 ${lvl.S[2]}`, "pill warn");
+      }
+    }
+  }
+
+  function renderRS(spotVal){
+    const box = $("#rsBox"); box.innerHTML = "";
+    const lvl = levels(spotVal);
+    if(!lvl){ box.innerHTML = `<div class="muted">Renseigne le spot pour générer R/S.</div>`; return; }
+    const mk = (title, arr)=> `<div class="box"><b>${title}</b><ul style="margin:6px 0 0 18px">${arr.map((v,i)=>`<li>${title[0]}${i+1}: <b>${v}</b></li>`).join("")}</ul></div>`;
+    box.innerHTML = mk("Résistances",lvl.R)+mk("Supports",lvl.S);
+  }
+
+  function fillAgendaHeuristics(){
+    const now=new Date(); const y=now.getFullYear(), m=now.getMonth();
+    const fmt=d=>d? d.toISOString().slice(0,10):"";
+    const biz=(n)=>{const d=new Date(Date.UTC(y,m,1)); let c=0; while(d.getUTCMonth()===m){const wd=d.getUTCDay(); if(wd>=1&&wd<=5){c++; if(c===n) return new Date(d);} d.setUTCDate(d.getUTCDate()+1);} return null;};
+    const nth=(wd,n)=>{const d=new Date(Date.UTC(y,m,1)); let c=0; while(d.getUTCMonth()===m){ if(d.getUTCDay()===wd){c++; if(c===n) return new Date(d);} d.setUTCDate(d.getUTCDate()+1);} return null;};
+    const eomWeekday=(wd)=>{const d=new Date(Date.UTC(y,m+1,0)); while(d.getUTCDay()!==wd){ d.setUTCDate(d.getUTCDate()-1);} return d;};
+    $("#nfpDate").value = fmt(biz(5));          // 1er vendredi ouvré ~ NFP
+    $("#cpiDate").value = fmt(nth(3,2));        // CPI ~ 2e mercredi (3=Wed)
+    $("#pceDate").value = fmt(eomWeekday(5));   // PCE core ~ dernier vendredi (5=Fri)
+    $("#fomcStart").value = "";                 // dates à ajuster
+    $("#fomcEnd").value = "";
+  }
+
+  async function exportPDF(){
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:"portrait",unit:"pt",format:"a4"});
+    const pageW=pdf.internal.pageSize.getWidth(), pageH=pdf.internal.pageSize.getHeight();
+    const margin=28, maxW=pageW-2*margin, maxH=pageH-2*margin;
+    const chunks = $$(".print-chunk");
+    let page=0;
+    for(const el of chunks){
+      const canvas = await html2canvas(el, {scale:2, backgroundColor:"#ffffff"});
+      const img = canvas.toDataURL("image/png");
+      const r = Math.min(maxW/canvas.width, maxH/canvas.height);
+      const w=canvas.width*r, h=canvas.height*r;
+      if(page>0) pdf.addPage();
+      pdf.addImage(img,"PNG",margin,margin,w,h);
+      pdf.setFontSize(9); pdf.setTextColor(120);
+      pdf.text("XAU/USD – Brief COT (auto)", margin, pageH-12);
+      pdf.text(String(page+1), pageW-margin, pageH-12, {align:"right"});
+      page++;
+    }
+    const name = `XAUUSD_COT_Brief_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(name);
+  }
+
+  function analyse(){
+    const cur = parseCotDisaggregated($("#curTxt").value);
+    const prev = parseCotDisaggregated($("#prevTxt").value);
+    if(!cur){ alert("Impossible de lire la ligne « All : … » dans le rapport actuel."); return; }
+    const d = deltas(cur, prev);
+    const mmNet = cur.mm.long - cur.mm.short;
+    const mmPct = pct(mmNet, cur.openInterest);
+    const histArr = parseHistoryCSV($("#histCsv").value);
+    const mmIdx = cotIndex(mmNet, histArr, 156);
+    const bias = prev? inferBias(cur, prev) : null;
+
+    $("#resume").innerHTML = `
+      <b>Résumé</b> — ${bias? `<b>${bias.bias}</b> • ${bias.reason}.` : `en attente de S-1 pour Δ net.`}
+      ${isFinite(mmPct)? ` Net %OI (MM) ≈ <b>${mmPct.toFixed(2)}%</b>.`:""}
+      ${mmIdx!=null? ` COT Index(156) ≈ <b>${mmIdx.toFixed(0)}</b>.`:""}
+      <div class="hint">Le COT reflète le mardi et paraît le vendredi → filtre hebdomadaire, pas de timing intraday.</div>
+    `;
+    renderKpis(cur, prev, histArr, $("#spot").value);
+    renderTable(cur, prev, d);
+    renderRS($("#spot").value);
+    renderCharts(cur, prev);
+  }
+
+  function saveState(){
+    const o={}; stateKeys.forEach(k=> o[k] = $("#"+k)?.value ?? "");
+    localStorage.setItem("xau_cot_state", JSON.stringify(o));
+    alert("État sauvegardé localement.");
+  }
+  function loadState(){
+    try{
+      const o = JSON.parse(localStorage.getItem("xau_cot_state")||"{}");
+      stateKeys.forEach(k=> { if($("#"+k) && o[k]!=null) $("#"+k).value = o[k]; });
+      if(o.curTxt) analyse();
+    }catch(e){}
+  }
+
+  // Agenda export ICS
+  function exportICS(){
+    const items = [
+      ["NFP US", $("#nfpDate").value],
+      ["CPI US", $("#cpiDate").value],
+      ["PCE core", $("#pceDate").value],
+      ["FOMC Start", $("#fomcStart").value],
+      ["FOMC End", $("#fomcEnd").value]
+    ].filter(x=>x[1] && x[1].length===10);
+    if(!items.length) { alert("Aucune date valide pour ICS."); return; }
+    let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//XAU COT//EN\n";
+    items.forEach(([t,d])=>{
+      ics += `BEGIN:VEVENT\nDTSTART:${d.replace(/-/g,"")}\nSUMMARY:${t}\nEND:VEVENT\n`;
+    });
+    ics += "END:VCALENDAR";
+    const blob = new Blob([ics],{type:"text/calendar"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "agenda_macro.ics";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  }
+
+  // Bind
+  $("#btnAnalyse").addEventListener("click", analyse);
+  $("#btnExportPDF").addEventListener("click", exportPDF);
+  $("#btnSave").addEventListener("click", saveState);
+  $("#btnLoad").addEventListener("click", loadState);
+  $("#btnFillAgenda").addEventListener("click", fillAgendaHeuristics);
+  $("#btnExportICS").addEventListener("click", exportICS);
+
+  // Auto-load persisted state
+  loadState();
+})();
+</script>
+</body>
+</html>
