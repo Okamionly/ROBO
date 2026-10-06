@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Labo Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Layout : poste de trading — barre d'onglets, simulateur en colonne graphique + panneau latéral, cours en index + colonne de lecture. */
+  :root{
+    color-scheme: dark;
+    --bg:#0a0d1d; --surface:#10142a; --surface-2:#161b36; --raise:#1c2244; --line:#262d52;
+    --fg:#e7eaf6; --muted:#8f97ba; --accent:#4d8dff; --accent-ink:#ffffff;
+    --profit:#22c55e; --loss:#f0435a; --prob:#3a6fd8; --warn:#f2a93b; --violet:#a58bfa;
+    --font-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --font-body:"Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-data:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --r-sm:6px; --r-md:10px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      color-scheme: light;
+      --bg:#f3f5fb; --surface:#ffffff; --surface-2:#eef1f9; --raise:#e4e8f4; --line:#d6dbeb;
+      --fg:#121633; --muted:#596187; --accent:#2a63e0; --accent-ink:#ffffff;
+      --profit:#13994a; --loss:#d42c45; --prob:#5d86dc; --warn:#b06f12; --violet:#7a5bd6;
+    }
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#f3f5fb; --surface:#ffffff; --surface-2:#eef1f9; --raise:#e4e8f4; --line:#d6dbeb;
+    --fg:#121633; --muted:#596187; --accent:#2a63e0; --accent-ink:#ffffff;
+    --profit:#13994a; --loss:#d42c45; --prob:#5d86dc; --warn:#b06f12; --violet:#7a5bd6;
+  }
+
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font-body);-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--font-display);font-weight:700;letter-spacing:-.01em;text-wrap:balance;margin:0}
+  h1{font-size:1.75rem;line-height:1.15}
+  h2{font-size:1.05rem}
+  h3{font-size:1rem}
+  p{margin:0}
+  code,.mono{font-family:var(--font-data);font-size:.86em}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .muted{color:var(--muted)}
+  .num{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+  .pos{color:var(--profit)} .neg{color:var(--loss)}
+
+  /* ---------- Barre supérieure ---------- */
+  .topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:inset 0 3px 0 var(--violet)}
+  .topbar-in{max-width:1320px;margin:0 auto;padding:12px 16px 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 28px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:1.2rem;padding-bottom:10px}
+  .brand svg{flex:none}
+  .brand small{font-family:var(--font-body);font-weight:500;font-size:.78rem;color:var(--muted)}
+  .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-left:auto}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px 12px;color:var(--muted);font-weight:600;white-space:nowrap}
+  .tab:hover{color:var(--fg)}
+  .tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+
+  .wrap{max-width:1320px;margin:0 auto;padding-inline:16px;padding-block:20px 40px}
+  .tab-panel{display:grid;gap:18px}
+
+  /* ---------- Éléments communs ---------- */
+  .eyebrow{font-size:.74rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .eyebrow b{color:var(--fg);letter-spacing:.02em}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;background:var(--accent);color:var(--accent-ink);padding:7px 12px;border-radius:var(--r-sm);font-weight:600;font-size:.88rem}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:var(--surface-2);color:var(--fg);border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--accent)}
+  .btn.small{padding:4px 9px;font-size:.8rem}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--surface)}
+  .seg button{border:0;background:none;padding:7px 12px;font-weight:600;font-size:.86rem;color:var(--muted);border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+  .field{display:grid;gap:4px;min-width:0}
+  .field > span{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  input[type=number],input[type=text],select{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 9px;width:100%;min-width:0;font-family:var(--font-data);font-variant-numeric:tabular-nums}
+  input:focus,select:focus{border-color:var(--accent);outline:none}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);white-space:nowrap}
+  .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+  .tag.haussier{color:var(--profit)} .tag.baissier{color:var(--loss)} .tag.neutre{color:var(--warn)}
+  .tag.volatilite{color:var(--violet)} .tag.actions{color:var(--accent)} .tag.custom{color:var(--muted)}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;display:grid;gap:12px;min-width:0}
+  .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .note{font-size:.8rem;color:var(--muted)}
+
+  /* ---------- Simulateur : en-tête ---------- */
+  .sim-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
+  .title-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;min-width:0}
+  .title-row .fr{color:var(--muted);font-size:.95rem}
+  .market{display:grid;grid-template-columns:repeat(4,minmax(84px,120px)) auto;gap:10px;align-items:end}
+  .market .field input{width:100%}
+  .quote{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+  .quote .px{font-family:var(--font-data);font-size:1.3rem;font-weight:600}
+
+  /* Sélecteur de stratégies */
+  .picker{display:grid;gap:10px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:4px 11px;font-size:.82rem;font-weight:600}
+  .chip:hover{color:var(--fg)}
+  .chip[aria-pressed="true"]{background:var(--raise);color:var(--fg);border-color:var(--accent)}
+  .strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
+  .strat{flex:0 0 132px;scroll-snap-align:start;display:grid;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:8px 10px 9px}
+  .strat:hover{border-color:var(--muted)}
+  .strat[aria-pressed="true"]{border-color:var(--accent);background:var(--surface-2)}
+  .strat b{font-size:.84rem;line-height:1.2}
+  .strat span{font-size:.72rem;color:var(--muted);line-height:1.2}
+  .mini{display:block;width:100%;height:38px}
+  .mini .zero{stroke:var(--line);stroke-width:1}
+  .mini .fp{fill:var(--profit);opacity:.22} .mini .fn{fill:var(--loss);opacity:.22}
+  .mini .lp{stroke:var(--profit);stroke-width:1.8;fill:none} .mini .ln{stroke:var(--loss);stroke-width:1.8;fill:none}
+
+  /* Grille principale */
+  .sim-grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:18px;align-items:start}
+  .sim-main{display:grid;gap:16px;min-width:0}
+  .sim-side{display:grid;gap:14px;min-width:0}
+
+  /* Échéances */
+  .exp-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+  .exp-head label{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
+  .exp-head input{width:76px}
+  .exp-scroll{overflow-x:auto;padding-bottom:4px}
+  .exp-row{display:flex;gap:4px;width:max-content}
+  .exp-month{display:grid;gap:4px}
+  .exp-month > span{background:var(--surface-2);border-radius:var(--r-sm);text-align:center;font-size:.78rem;font-weight:600;color:var(--muted);padding:3px 8px;white-space:nowrap}
+  .exp-days{display:flex;gap:2px;justify-content:center}
+  .exp-day{min-width:36px;border:0;background:none;border-radius:var(--r-sm);padding:4px 6px;font-family:var(--font-data);font-weight:600;font-size:.86rem;color:var(--fg)}
+  .exp-day:hover{background:var(--surface-2)}
+  .exp-day[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+  .far-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.86rem}
+  .far-row select{width:auto}
+
+  /* Échelle des strikes */
+  .ladder{position:relative;height:96px;user-select:none;touch-action:pan-y;margin-top:4px}
+  .ladder .axis{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+  .ladder .tick{position:absolute;top:50%;width:1px;height:6px;margin-top:-3px;background:var(--muted);opacity:.5}
+  .ladder .tick.major{height:10px;margin-top:-5px;opacity:.9}
+  .ladder .tlabel{position:absolute;top:calc(50% + 8px);transform:translateX(-50%);font-family:var(--font-data);font-size:.72rem;color:var(--muted);white-space:nowrap}
+  .ladder .spot{position:absolute;top:calc(50% - 14px);width:0;height:0;margin-left:-5px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--fg)}
+  .leg-chip{position:absolute;transform:translateX(-50%);border:0;border-radius:var(--r-sm);padding:3px 8px;font-family:var(--font-data);font-weight:600;font-size:.8rem;color:#fff;cursor:grab;touch-action:none;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .leg-chip.buy{background:var(--profit)} .leg-chip.sell{background:var(--loss)}
+  .leg-chip:active{cursor:grabbing}
+  .leg-chip::after{content:"";position:absolute;left:50%;margin-left:-4px;border:4px solid transparent}
+  .leg-chip.buy::after{top:100%;border-top-color:var(--profit)}
+  .leg-chip.sell::after{bottom:100%;border-bottom-color:var(--loss)}
+  .ladder-hint{font-size:.78rem;color:var(--muted)}
+
+  /* Statistiques */
+  .stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+  .stat{background:var(--surface);padding:12px 14px;display:grid;gap:3px;align-content:start;min-width:0}
+  .stat .k{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-family:var(--font-data);font-weight:600;font-size:1.06rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .stat .s{font-size:.76rem;color:var(--muted)}
+  .stat .v.txt{font-family:var(--font-body);font-size:1rem;line-height:1.3}
+
+  /* Graphique */
+  .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 12px 6px;display:grid;gap:8px;min-width:0}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.8rem;color:var(--muted);padding-left:4px}
+  .legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
+  .legend i.sw-date{border-image:linear-gradient(90deg,var(--loss) 50%,var(--profit) 50%) 1}
+  .legend i.sw-exp{border-top-style:dashed;border-color:var(--fg)}
+  .legend i.sw-prob{height:9px;border:0;background:var(--prob);opacity:.6;border-radius:2px 2px 0 0}
+  .plot{position:relative;height:420px;min-width:0}
+  .plot canvas{display:block;touch-action:pan-y}
+  .plot-tip{position:absolute;pointer-events:none;background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 9px;font-size:.78rem;line-height:1.45;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.28);z-index:2}
+  .plot-tip b{font-family:var(--font-data);font-weight:600}
+  .empty{display:grid;place-items:center;text-align:center;padding:40px 16px;color:var(--muted);gap:8px}
+
+  /* Tableau P/L */
+  .table-scroll{overflow-x:auto;min-width:0}
+  table.heat{border-collapse:separate;border-spacing:2px;width:100%;font-family:var(--font-data);font-size:.78rem;font-variant-numeric:tabular-nums}
+  table.heat th{font-weight:600;color:var(--muted);padding:4px 6px;white-space:nowrap;text-align:right}
+  table.heat th small{display:block;font-weight:400;opacity:.8}
+  table.heat td{padding:5px 6px;text-align:right;border-radius:4px;white-space:nowrap}
+  table.heat tr.spot-row th{color:var(--fg)}
+  table.heat tr.spot-row td{outline:1px solid var(--fg);outline-offset:-1px}
+
+  /* Curseurs */
+  .sliders{display:grid;gap:14px}
+  .slider-row{display:grid;gap:6px}
+  .slider-row .lbl{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.8rem}
+  .slider-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .marks{display:flex;justify-content:space-between;font-family:var(--font-data);font-size:.7rem;color:var(--muted)}
+  .views{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+
+  /* Jambes */
+  .legs{display:grid;gap:8px}
+  .leg{border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);padding:10px;display:grid;gap:8px}
+  .leg-top{display:grid;grid-template-columns:auto 58px minmax(0,1fr) 30px;gap:6px;align-items:center}
+  .leg-top .seg button{padding:5px 8px;font-size:.8rem}
+  .leg-top .seg button.on-buy[aria-pressed="true"]{background:var(--profit);color:#fff}
+  .leg-top .seg button.on-sell[aria-pressed="true"]{background:var(--loss);color:#fff}
+  .leg-mid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .leg-mid .field > span,.leg-top .field > span{font-size:.64rem}
+  .leg-mid input,.leg-mid select,.leg-top input,.leg-top select{padding:5px 7px;font-size:.84rem}
+  .icon-btn{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--muted)}
+  .icon-btn:hover{color:var(--loss);border-color:var(--loss)}
+  .leg-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:.74rem;color:var(--muted)}
+  .leg-foot .occ{font-family:var(--font-data);white-space:pre}
+  .prem{display:flex;gap:4px}
+  .prem button{flex:none;width:28px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--muted);font-size:.8rem}
+  .add-legs{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* Grecques */
+  .greeks{display:grid;gap:0}
+  .greek{display:grid;grid-template-columns:26px 1fr auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:baseline}
+  .greek:last-child{border-bottom:0}
+  .greek .sym{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--accent)}
+  .greek .nm{font-weight:600;font-size:.88rem}
+  .greek .val{font-family:var(--font-data);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+  .greek .ex{grid-column:2 / 4;font-size:.78rem;color:var(--muted)}
+
+  .reading{display:grid;gap:8px;font-size:.88rem}
+  .reading ul{margin:0;padding-left:18px;display:grid;gap:6px}
+
+  /* ---------- Cours ---------- */
+  .course{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start}
+  .lesson-nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);display:grid;gap:12px}
+  .progress{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:var(--profit);border-radius:999px;transition:width .3s}
+  .lesson-list{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:l}
+  .lesson-list button{width:100%;display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;text-align:left;background:none;border:0;border-radius:var(--r-sm);padding:8px;color:var(--fg);font-size:.88rem}
+  .lesson-list button:hover{background:var(--surface-2)}
+  .lesson-list button[aria-current="true"]{background:var(--surface-2);box-shadow:inset 2px 0 0 var(--accent)}
+  .lesson-list .n{font-family:var(--font-data);font-size:.76rem;color:var(--muted)}
+  .lesson-list .done{color:var(--profit);font-size:.8rem}
+  .lesson{max-width:74ch;display:grid;gap:16px;min-width:0}
+  .lesson .meta{font-size:.82rem;color:var(--muted)}
+  .lesson h1{font-size:2rem}
+  .lesson-body{display:grid;gap:12px;line-height:1.65}
+  .lesson-body ul{margin:0;padding-left:20px;display:grid;gap:6px}
+  .lesson-body .callout{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md);padding:12px 14px;font-size:.92rem}
+  .lesson-body .formula{font-family:var(--font-data);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r-sm);padding:10px 12px;text-align:center}
+  .lesson-body dl.defs{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0}
+  .lesson-body dl.defs dt{font-weight:600}
+  .lesson-body dl.defs dd{margin:0;color:var(--fg)}
+  table.data{border-collapse:collapse;width:100%;font-size:.86rem}
+  table.data th,table.data td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+  table.data th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .figure{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .figure .fig{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:10px;display:grid;gap:4px;text-align:left}
+  .figure .fig .mini{height:56px}
+  .figure .fig b{font-size:.84rem}
+  .keys{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:8px}
+  .keys ul{margin:0;padding-left:20px;display:grid;gap:4px}
+  .cta{display:flex;gap:8px;flex-wrap:wrap}
+  .lesson-pager{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px}
+  .gloss{display:grid;gap:12px}
+  .gloss-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+  .gloss-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;display:grid;gap:3px}
+  .gloss-item b{font-size:.9rem}
+  .gloss-item span{font-size:.84rem;color:var(--muted)}
+
+  /* ---------- Labo Grecques ---------- */
+  .lab{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+  .lab-controls{display:grid;gap:14px}
+  .ctl{display:grid;gap:6px}
+  .ctl .lbl{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ctl .lbl input{width:88px;text-align:right}
+  .lab-out{display:grid;gap:14px;min-width:0}
+  .price-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+  .greek-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .gcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;display:grid;gap:4px;align-content:start;min-width:0}
+  .gcard .sym{font-family:var(--font-display);font-weight:700;color:var(--accent)}
+  .gcard .val{font-family:var(--font-data);font-weight:600;font-size:1.05rem}
+  .gcard .ex{font-size:.74rem;color:var(--muted)}
+  .lab .plot{height:340px}
+  .experiments{margin:0;padding-left:20px;display:grid;gap:6px;font-size:.88rem}
+
+  /* ---------- Quiz ---------- */
+  .quiz{max-width:760px;display:grid;gap:16px}
+  .quiz-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .qcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:20px;display:grid;gap:14px}
+  .qcard h2{font-size:1.2rem;line-height:1.3}
+  .opts{display:grid;gap:8px}
+  .opt{text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r-md);padding:11px 14px;font-size:.95rem;display:flex;gap:10px;align-items:baseline}
+  .opt .l{font-family:var(--font-data);font-weight:600;color:var(--muted)}
+  .opt:hover:not([disabled]){border-color:var(--accent)}
+  .opt[disabled]{cursor:default}
+  .opt.right{border-color:var(--profit);background:color-mix(in srgb,var(--profit) 14%,var(--surface-2))}
+  .opt.wrong{border-color:var(--loss);background:color-mix(in srgb,var(--loss) 14%,var(--surface-2))}
+  .explain{border-left:3px solid var(--accent);padding:6px 12px;font-size:.9rem}
+  .qdots{display:flex;gap:4px}
+  .qdots i{width:22px;height:5px;border-radius:999px;background:var(--surface-2)}
+  .qdots i.ok{background:var(--profit)} .qdots i.ko{background:var(--loss)} .qdots i.cur{background:var(--accent)}
+  .score{font-family:var(--font-display);font-size:3rem;font-weight:700;line-height:1}
+
+  footer{max-width:1320px;margin:0 auto;padding:0 16px 28px;font-size:.78rem;color:var(--muted)}
+
+  @media (max-width:1100px){
+    .sim-grid{grid-template-columns:minmax(0,1fr)}
+    .sim-side{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+    .lab{grid-template-columns:minmax(0,1fr)}
+  }
+  @media (max-width:900px){
+    .course{grid-template-columns:minmax(0,1fr)}
+    .lesson-nav{position:static}
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stats .stat:last-child{grid-column:1 / -1}
+    .greek-cards{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+    .market{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .market .btn{grid-column:1 / -1;justify-content:center}
+  }
+  @media (max-width:560px){
+    h1{font-size:1.45rem}
+    .lesson h1{font-size:1.5rem}
+    .plot{height:300px}
+    .lab .plot{height:280px}
+    .slider-pair{grid-template-columns:minmax(0,1fr)}
+    .sim-side{grid-template-columns:minmax(0,1fr)}
+    .price-cards{grid-template-columns:minmax(0,1fr)}
+    .lesson-body dl.defs{grid-template-columns:minmax(0,1fr)}
+    .lesson-body dl.defs dd{margin-bottom:6px}
+    .tabs{margin-left:0;width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/><path d="M4 17h9l9-11" fill="none" stroke="var(--profit)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17h7" stroke="var(--loss)" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <span>Labo Options <small>apprendre en simulant</small></span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-btn-simulateur" data-tab="simulateur" aria-controls="tab-simulateur">Simulateur</button>
+      <button class="tab" role="tab" id="tab-btn-cours" data-tab="cours" aria-controls="tab-cours">Cours</button>
+      <button class="tab" role="tab" id="tab-btn-grecques" data-tab="grecques" aria-controls="tab-grecques">Labo Grecques</button>
+      <button class="tab" role="tab" id="tab-btn-quiz" data-tab="quiz" aria-controls="tab-quiz">Quiz</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ============ SIMULATEUR ============ -->
+  <section class="tab-panel" id="tab-simulateur" role="tabpanel" aria-labelledby="tab-btn-simulateur">
+    <div class="sim-head">
+      <div>
+        <div class="title-row">
+          <h1 id="stratName">Long Call</h1>
+          <span id="stratTag" class="tag haussier">Haussier</span>
+          <span id="stratFr" class="fr">Achat de call</span>
+        </div>
+        <div class="quote"><span class="mono" id="quoteTicker">AAPL</span><span class="px" id="quotePx">306,38 $</span><span class="note">Cours saisi à la main · prix théoriques Black-Scholes</span></div>
+      </div>
+      <div class="market">
+        <label class="field"><span>Ticker</span><input id="mTicker" type="text" maxlength="6" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Cours $</span><input id="mSpot" type="number" min="0.5" step="0.01" inputmode="decimal"></label>
+        <label class="field"><span>VI %</span><input id="mIv" type="number" min="1" max="300" step="0.1" inputmode="decimal"></label>
+        <label class="field"><span>Taux %</span><input id="mRate" type="number" min="0" max="20" step="0.1" inputmode="decimal"></label>
+        <button id="btnExample" class="btn ghost" type="button">Exemple AAPL</button>
+      </div>
+    </div>
+
+    <div class="picker">
+      <div class="filters" id="stratFilters" role="group" aria-label="Filtrer les stratégies"></div>
+      <div class="strip" id="stratStrip"></div>
+    </div>
+
+    <div class="sim-grid">
+      <div class="sim-main">
+        <div class="panel">
+          <div class="exp-head">
+            <span class="eyebrow">Échéance : <b id="expLabel">—</b></span>
+            <label for="dteInput">ou nombre de jours <input id="dteInput" type="number" min="1" max="1100" step="1"></label>
+          </div>
+          <div class="exp-scroll"><div class="exp-row" id="expChips"></div></div>
+          <div class="far-row" id="farRow" hidden>
+            <span class="eyebrow">Échéance lointaine</span>
+            <select id="farSelect" aria-label="Échéance lointaine"></select>
+          </div>
+          <div>
+            <span class="eyebrow">Strike</span>
+            <div class="ladder" id="ladder" aria-label="Échelle des strikes"></div>
+            <p class="ladder-hint">Faites glisser une étiquette pour changer le strike (ou utilisez les flèches du clavier). Vert = achat, rouge = vente.</p>
+          </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="chart-card">
+          <div class="legend" id="chartLegend"></div>
+          <div id="plChart" class="plot"></div>
+          <div id="plTable" class="table-scroll" hidden></div>
+        </div>
+
+        <div class="panel sliders">
+          <div class="slider-row">
+            <div class="lbl"><span class="eyebrow">Date : <b id="dateLabel">—</b></span><span class="muted" id="dateSub"></span></div>
+            <input id="daySlider" type="range" min="0" max="30" step="1" value="0" aria-label="Date de simulation">
+          </div>
+          <div class="slider-pair">
+            <div class="slider-row">
+              <div class="lbl"><span class="eyebrow">Plage : <b id="rangeLabel">±14 %</b></span></div>
+              <input id="rangeSlider" type="range" min="3" max="60" step="1" value="14" aria-label="Plage de prix affichée">
+            </div>
+            <div class="slider-row">
+              <div class="lbl"><span class="eyebrow">Volatilité implicite : <b id="ivLabel">—</b></span></div>
+              <input id="ivSlider" type="range" min="0.25" max="3" step="0.05" value="1" aria-label="Multiplicateur de volatilité implicite">
+              <div class="marks"><span>×0,25</span><span>×1</span><span>×2</span><span>×3</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="views">
+          <div class="seg" role="group" aria-label="Affichage">
+            <button type="button" data-view="graph">Graphique</button>
+            <button type="button" data-view="table">Tableau</button>
+          </div>
+          <div class="seg" role="group" aria-label="Mesure">
+            <button type="button" data-metric="pl">P/L $</button>
+            <button type="button" data-metric="plpct">P/L %</button>
+            <button type="button" data-metric="value">Valeur</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sim-side">
+        <section class="panel">
+          <div class="panel-head"><h2>Jambes</h2><span class="note" id="legsNote"></span></div>
+          <div class="legs" id="legs"></div>
+          <div class="add-legs">
+            <button class="btn ghost small" type="button" data-add="call">+ Call</button>
+            <button class="btn ghost small" type="button" data-add="put">+ Put</button>
+            <button class="btn ghost small" type="button" data-add="stock">+ 100 actions</button>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Grecques de la position</h2><span class="note" id="greeksNote"></span></div>
+          <div class="greeks" id="greeks"></div>
+        </section>
+        <section class="panel">
+          <h2>Lecture du graphique</h2>
+          <div class="reading" id="reading"></div>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ COURS ============ -->
+  <section class="tab-panel" id="tab-cours" role="tabpanel" aria-labelledby="tab-btn-cours" hidden>
+    <div class="course">
+      <nav class="lesson-nav" aria-label="Leçons">
+        <div class="eyebrow">Progression : <b id="progressLabel">0 / 10</b></div>
+        <div class="progress"><i id="progressBar" style="width:0%"></i></div>
+        <ol class="lesson-list" id="lessonList"></ol>
+      </nav>
+      <article class="lesson" id="lesson"></article>
+    </div>
+  </section>
+
+  <!-- ============ LABO GRECQUES ============ -->
+  <section class="tab-panel" id="tab-grecques" role="tabpanel" aria-labelledby="tab-btn-grecques" hidden>
+    <div>
+      <h1>Labo Grecques</h1>
+      <p class="muted" style="margin-top:6px;max-width:70ch">Une seule option, tous les paramètres sous la main. Bougez les curseurs et regardez comment le prix et les Grecques réagissent au cours, au temps et à la volatilité.</p>
+    </div>
+    <div class="lab">
+      <div class="panel lab-controls">
+        <div class="seg" role="group" aria-label="Type d'option" id="labKind">
+          <button type="button" data-kind="call">Call</button>
+          <button type="button" data-kind="put">Put</button>
+        </div>
+        <div class="ctl"><div class="lbl"><label class="eyebrow" for="labSn">Cours du sous-jacent $</label><input id="labSn" type="number" min="1" max="2000" step="0.5"></div><input id="labS" type="range" min="10" max="400" step="0.5" aria-label="Cours du sous-jacent"></div>
+        <div class="ctl"><div class="lbl"><label class="eyebrow" for="labKn">Strike $</label><input id="labKn" type="number" min="1" max="2000" step="0.5"></div><input id="labK" type="range" min="10" max="400" step="0.5" aria-label="Strike"></div>
+        <div class="ctl"><div class="lbl"><label class="eyebrow" for="labTn">Jours restants</label><input id="labTn" type="number" min="1" max="730" step="1"></div><input id="labT" type="range" min="1" max="365" step="1" aria-label="Jours restants"></div>
+        <div class="ctl"><div class="lbl"><label class="eyebrow" for="labVn">Volatilité implicite %</label><input id="labVn" type="number" min="1" max="200" step="0.5"></div><input id="labV" type="range" min="5" max="150" step="0.5" aria-label="Volatilité implicite"></div>
+        <div class="ctl"><div class="lbl"><label class="eyebrow" for="labRn">Taux sans risque %</label><input id="labRn" type="number" min="0" max="20" step="0.1"></div><input id="labR" type="range" min="0" max="10" step="0.1" aria-label="Taux sans risque"></div>
+        <div>
+          <h3>Expériences</h3>
+          <ol class="experiments">
+            <li>Mettez le strike égal au cours, puis passez de 60 à 2 jours : le gamma s'envole, le theta se creuse.</li>
+            <li>Doublez la volatilité : la prime grimpe surtout à la monnaie (vega).</li>
+            <li>Passez en put et éloignez le strike : le delta tend vers 0 ou −1.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="lab-out">
+        <div class="price-cards" id="labPrice"></div>
+        <div class="greek-cards" id="labGreeks"></div>
+        <div class="chart-card">
+          <div class="views">
+            <div class="seg" role="group" aria-label="Courbe affichée" id="labMetric">
+              <button type="button" data-m="price">Prix</button>
+              <button type="button" data-m="delta">Delta</button>
+              <button type="button" data-m="gamma">Gamma</button>
+              <button type="button" data-m="theta">Theta</button>
+              <button type="button" data-m="vega">Vega</button>
+            </div>
+            <div class="legend" id="labLegend"></div>
+          </div>
+          <div id="labChart" class="plot"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="tab-panel" id="tab-quiz" role="tabpanel" aria-labelledby="tab-btn-quiz" hidden>
+    <div class="quiz" id="quiz"></div>
+  </section>
+</main>
+
+<footer>Outil pédagogique : modèle de Black-Scholes sans dividendes ni frais, volatilité constante, contrats de 100 actions. Les chiffres sont théoriques et ne constituent pas un conseil en investissement.</footer>
+
+<script src="options_engine.js"></script>
+<script src="options_content.js"></script>
+<script src="options_lab.js"></script>
+</body>
+</html>
