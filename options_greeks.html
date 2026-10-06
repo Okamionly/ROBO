@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Options — Profil de risque & Grecques</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151923; --ink:#eef1f7; --muted:#9aa3b2;
+    --accent:#59c3ff; --soft:#0b1220; --line:#212637;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:1400px;margin:auto;padding:24px}
+  h1{font-size:24px;margin:0 0 12px}
+  h2{font-size:18px;margin:0}
+  .card{background:linear-gradient(180deg,var(--panel),var(--soft));border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 25px rgba(0,0,0,.25)}
+  .card .hd{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card .bd{padding:14px 16px}
+  label{display:block;color:var(--muted);margin:0 0 6px}
+  input{width:100%;box-sizing:border-box;background:#0b1220;border:1px solid #1c2435;color:var(--ink);padding:10px;border-radius:10px;outline:none}
+  input:focus{border-color:#304063}
+  input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent);height:38px}
+  button{background:#1e293b;color:#e9eef9;border:1px solid #2b3b57;padding:9px 12px;border-radius:10px;cursor:pointer;font:inherit}
+  button:hover{filter:brightness(1.1)}
+  .params{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .seg{display:flex;border:1px solid #2b3b57;border-radius:10px;overflow:hidden}
+  .seg button{flex:1;border:0;border-radius:0;background:#0b1220;color:var(--muted)}
+  .seg button.on{background:#1e3350;color:#fff}
+  .kpis{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 10px}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0e1526}
+  .pill b{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:0 0 12px;color:var(--muted);font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .panels{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+  .gk{background:linear-gradient(180deg,var(--panel),var(--soft));border:1px solid var(--line);border-radius:14px;padding:12px}
+  .gk h3{margin:0;text-align:center;font-size:17px}
+  .gk-val{text-align:center;font-size:12px;min-height:1.45em;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+  .gk svg{width:100%;height:auto;display:block;touch-action:pan-y;cursor:crosshair}
+  .gk-txt{margin:8px 0 0;font-size:13px;color:#d5dbe7}
+  .hint{font-size:12px;color:#aab2c2;margin-top:14px}
+  @media (max-width:1200px){.panels{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:760px){
+    .wrap{padding:16px}
+    .params{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .panels{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width:480px){.panels{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📈 Options — Profil de risque & Grecques (Black-Scholes)</h1>
+
+  <div class="card">
+    <div class="hd">
+      <h2>Paramètres</h2>
+      <button id="btnAtm" type="button">Strike = Spot (ATM)</button>
+    </div>
+    <div class="bd">
+      <div class="params">
+        <div>
+          <label>Type</label>
+          <div class="seg" data-name="type">
+            <button type="button" data-v="call" class="on" aria-pressed="true">Call</button>
+            <button type="button" data-v="put" aria-pressed="false">Put</button>
+          </div>
+        </div>
+        <div>
+          <label>Position</label>
+          <div class="seg" data-name="side">
+            <button type="button" data-v="long" class="on" aria-pressed="true">Achat (long)</button>
+            <button type="button" data-v="short" aria-pressed="false">Vente (short)</button>
+          </div>
+        </div>
+        <div><label for="spot">Prix du sous-jacent (S)</label><input id="spot" type="number" step="any" min="0" value="100" /></div>
+        <div><label for="strike">Strike (K)</label><input id="strike" type="number" step="any" min="0" value="100" /></div>
+        <div><label for="vol">Volatilité implicite (%)</label><input id="vol" type="number" step="0.5" min="1" value="30" /></div>
+        <div><label for="rate">Taux sans risque (%)</label><input id="rate" type="number" step="0.1" value="4.5" /></div>
+        <div><label for="div">Dividende / portage q (%)</label><input id="div" type="number" step="0.1" value="0" /></div>
+        <div><label for="days">Jours avant échéance : <b id="daysOut">30</b></label><input id="days" type="range" min="1" max="365" value="30" /></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="legend" id="legend"></div>
+  <div class="panels" id="panels"></div>
+
+  <p class="hint">Modèle Black-Scholes-Merton (options européennes, volatilité constante). <b>A</b> = prix actuel du sous-jacent.
+    Thêta par jour calendaire, véga par point de volatilité, rho par point de taux. Survole un graphique pour lire les valeurs à un autre prix.</p>
+</div>
+
+<script src="options_greeks.js"></script>
+</body>
+</html>

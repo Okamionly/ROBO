@@ -32,3 +32,14 @@ Two example bots are provided:
 Both bots will attempt to place orders when a signal is `BUY` or `SELL`.
 Failed connections or order submissions raise exceptions so you can add your
 own handling logic.
+
+## Browser tools
+
+Open these pages directly in a browser (no build step):
+
+- `cot_analyzer.html` – COT report reader and analyzer for gold (XAU/USD).
+- `options_greeks.html` – interactive options risk profile and Greeks
+  (P&L, Theta, Delta, Vega, Gamma, Rho) for a long/short call or put, computed
+  with Black-Scholes-Merton. Adjust spot, strike, implied volatility, days to
+  expiry, rate and dividend yield; dashed curves show the same position closer
+  to expiry, and hovering a chart reads values at any underlying price.
